@@ -1,0 +1,60 @@
+version: '2'
+services:
+  redis:
+    image: redis:alpine
+    volumes:
+    - /srv/docker/sentry/redis:/data:Z
+
+  postgres:
+    image: postgres:alpine
+    volumes:
+      - /srv/docker/sentry/postgresql:/var/lib/postgresql/data:Z
+    environment:
+    - POSTGRES_DB=
+    - POSTGRES_USER=
+    - POSTGRES_PASSWORD=
+
+  smtp:
+    image: tianon/exim4
+
+  sentry:
+    image: sentry:latest
+    environment:
+    # Run `docker-compose run web config generate-secret-key`
+    # to get the SENTRY_SECRET_KEY value
+    # - SENTRY_DEFAULT_TIME_ZONE=
+    - SENTRY_REDIS_HOST=redis
+    - SENTRY_EMAIL_HOST=smtp
+    - SENTRY_POSTGRES_HOST=postgres
+    - SENTRY_DB_NAME=
+    - SENTRY_DB_USER=
+    - SENTRY_DB_PASSWORD=
+    - SENTRY_SECRET_KEY=
+    
+    volumes:
+      - /srv/docker/sentry/sentry:/var/lib/sentry/files
+
+  web:
+    extends: sentry
+    links:
+      - redis
+      - postgres
+      - smtp
+    ports:
+      - '9000:9000'
+
+  cron:
+    extends: sentry
+    command: run cron
+    links:
+      - redis
+      - postgres
+      - smtp
+
+  worker:
+    extends: sentry
+    command: run worker
+    links:
+      - redis
+      - postgres
+      - smtp
